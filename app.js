@@ -171,3 +171,42 @@ papers.forEach(paper => {
   p.init(paper);
 });
 
+
+// Reveal/close letter overlay logic
+(function() {
+  function initLetterOverlay() {
+    const revealBtn = document.getElementById('reveal-letter-btn');
+    const letterOverlay = document.getElementById('letter-overlay');
+    const closeBtn = document.getElementById('close-letter');
+
+    function openLetter() {
+      if (!letterOverlay) return;
+      letterOverlay.classList.add('visible');
+      letterOverlay.setAttribute('aria-hidden', 'false');
+      if (revealBtn) revealBtn.setAttribute('aria-expanded', 'true');
+      // prevent background scroll
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLetter() {
+      if (!letterOverlay) return;
+      letterOverlay.classList.remove('visible');
+      letterOverlay.setAttribute('aria-hidden', 'true');
+      if (revealBtn) revealBtn.setAttribute('aria-expanded', 'false');
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+
+    if (revealBtn) revealBtn.addEventListener('click', openLetter);
+    if (closeBtn) closeBtn.addEventListener('click', closeLetter);
+    if (letterOverlay) letterOverlay.addEventListener('click', function(e){ if (e.target === letterOverlay) closeLetter(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && letterOverlay && letterOverlay.classList.contains('visible')) closeLetter(); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLetterOverlay);
+  } else {
+    initLetterOverlay();
+  }
+})();
+
