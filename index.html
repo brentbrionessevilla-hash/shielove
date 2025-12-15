@@ -3,21 +3,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width,initial-scale=1" />
-		<title>Falling "iloveyou"</title>
+		<title>iloveyou</title>
 		<style>
 			:root{--bg:#0b1020;--fg:#ffd1dc;--accent:#ff6b9a}
 			html,body{height:100%;margin:0}
 			body{background:linear-gradient(180deg,#071025,#0b1020);color:var(--fg);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;display:flex;align-items:center;justify-content:center}
 			.stage{position:relative;width:100%;height:100vh;overflow:hidden}
-			.letter{position:absolute;top:-10vh;will-change:transform,opacity;pointer-events:none;user-select:none;display:inline-block;text-shadow:0 2px 8px rgba(0,0,0,.6);}
+			.letter{position:absolute;top:-10vh;will-change:transform,opacity;pointer-events:none;user-select:none;display:inline-block;text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:10}
 			@keyframes fall{
 				0%{transform:translateY(-10vh) rotate(var(--r,0deg));opacity:1}
 				90%{opacity:1}
 				100%{transform:translateY(110vh) rotate(calc(var(--r,0deg) + 180deg));opacity:0}
 			}
-			.controls{position:fixed;left:12px;top:12px;background:rgba(255,255,255,0.06);border-radius:10px;padding:8px 10px;color:var(--fg);backdrop-filter: blur(6px);display:flex;gap:8px;align-items:center}
+			.controls{position:fixed;left:12px;top:12px;background:rgba(255,255,255,0.06);border-radius:10px;padding:8px 10px;color:var(--fg);backdrop-filter: blur(6px);display:flex;gap:8px;align-items:center;z-index:50}
 			.btn{background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--fg);padding:6px 10px;border-radius:6px;cursor:pointer}
-			.title{position:fixed;left:12px;bottom:12px;color:rgba(255,255,255,0.6);font-size:14px}
+			.title{position:fixed;left:12px;bottom:12px;color:rgba(255,255,255,0.6);font-size:14px;z-index:50}
+
+			/* mobile adjustments */
+			@media (max-width: 600px) {
+				.controls{left:50%;transform:translateX(-50%);bottom:12px;top:auto;padding:10px 12px;gap:10px}
+				.controls .btn{padding:10px 14px;font-size:16px;border-radius:8px}
+				.title{left:auto;right:12px;bottom:56px;font-size:13px}
+				.letter{will-change:transform,opacity;font-weight:600}
+			}
 			/* heart style for the special heart element */
 			.heart{color:var(--accent);filter:drop-shadow(0 4px 12px rgba(255,107,154,0.25))}
 			/* prefers-reduced-motion: reduce animations and spawn fewer items */
@@ -34,18 +42,26 @@
 			<button class="btn" id="clear">Clear</button>
 		</div>
 
-		<div class="title">Falling "iloveyou" — hearts & letters</div>
 
 		<script>
 			(function(){
 				const stage = document.getElementById('stage');
 				const toggle = document.getElementById('toggle');
 				const clear = document.getElementById('clear');
-				const word = 'iloveyou';
+				const word = 'iloveyou, my shie!';
 				const heartChar = '❤';
-				let running = true;
-				let intervalId = null;
-				const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+								let running = true;
+								let intervalId = null;
+								const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+								// compute sensible settings for different screen sizes
+								function getSettings(){
+									const w = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+									if(w <= 480){
+										return {frequency: prefersReduced ? 1500 : 700, maxNodes: prefersReduced ? 6 : 18, sizeMin: 20, sizeMax: 46};
+									}
+									return {frequency: prefersReduced ? 1200 : 320, maxNodes: prefersReduced ? 10 : 60, sizeMin: 28, sizeMax: 86};
+								}
 
 				function rand(min, max){ return Math.random() * (max - min) + min }
 
@@ -58,7 +74,9 @@
 
 					// randomize starting horizontal position, font size, rotation and animation speed
 					const left = rand(3, 92);
-					  const size = Math.round(rand(28, 86));
+					  // size range depends on current viewport settings
+					  const s = getSettings();
+					  const size = Math.round(rand(s.sizeMin, s.sizeMax));
 					  const rotation = Math.round(rand(-20,20));
 					  const duration = Math.round(rand(7, 12));
 					const delay = Math.round(rand(0, 4000));
@@ -87,6 +105,10 @@
 				}
 
 				function spawn(){
+					// limit nodes to avoid performance issues on mobile
+					const s = getSettings();
+					if(stage.children.length >= s.maxNodes) return;
+
 					// spawn the full word; occasionally attach a heart
 					const makeHeart = Math.random() < 0.12; // 12% chance
 					const content = makeHeart ? `${word} <span class="heart">${heartChar}</span>` : word;
@@ -96,9 +118,9 @@
 
 				function startSpawning(){
 					if(intervalId) return;
-					// spawn frequency depends on reduced-motion
-					const frequency = prefersReduced ? 1200 : 320; // ms
-					intervalId = setInterval(()=>{ if(running) spawn() }, frequency);
+					// respawn frequency depends on viewport and reduced-motion
+					const s = getSettings();
+					intervalId = setInterval(()=>{ if(running) spawn() }, s.frequency);
 				}
 
 				function stopSpawning(){
@@ -121,6 +143,16 @@
 
 				// start
 				startSpawning();
+
+				// restart spawn timer on resize so frequency and limits adapt
+				let resizeTimer = null;
+				window.addEventListener('resize', ()=>{
+					if(resizeTimer) clearTimeout(resizeTimer);
+					resizeTimer = setTimeout(()=>{
+						if(intervalId) { clearInterval(intervalId); intervalId = null; }
+						startSpawning();
+					}, 250);
+				});
 
 				// accessibility: if reduced motion, make controls visible and default to paused spawn after initial short bursts
 				if(prefersReduced){
